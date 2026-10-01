@@ -8,16 +8,6 @@ email: jecminkam@seznam.cz
 import mysql.connector
 import pytest
 
-def vytvoreni_tabulky(def_conn, def_cursor):
-    def_cursor.execute("""CREATE TABLE IF NOT EXISTS ukoly(
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        nazev VARCHAR(50),
-        popis VARCHAR(500),
-        stav VARCHAR(20),
-        datum_vytvoreni DATE
-        )""")
-    def_conn.commit()
-
 def pripojeni_db():
     try:
         conn = mysql.connector.connect(
@@ -33,7 +23,17 @@ def pripojeni_db():
     cursor = conn.cursor()
     return conn, cursor
 
-def pridat_ukol(spojeni, kurzor):
+def vytvoreni_tabulky(conn, cursor):
+    cursor.execute("""CREATE TABLE IF NOT EXISTS ukoly(
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nazev VARCHAR(50),
+        popis VARCHAR(500),
+        stav VARCHAR(20),
+        datum_vytvoreni DATE
+        )""")
+    conn.commit()
+
+def pridat_ukol(conn, cursor):
     while True:
         nazev_ukolu = input("\nZadejte název úkolu: ")
         if nazev_ukolu == "":
@@ -48,22 +48,22 @@ def pridat_ukol(spojeni, kurzor):
         else:
             break
 
-    kurzor.execute("""INSERT INTO ukoly (nazev, popis, stav, datum_vytvoreni) VALUES (%s, %s, 'nezahájeno', CURDATE())""", (nazev_ukolu, popis_ukolu))
-    spojeni.commit()
+    cursor.execute("""INSERT INTO ukoly (nazev, popis, stav, datum_vytvoreni) VALUES (%s, %s, 'nezahájeno', CURDATE())""", (nazev_ukolu, popis_ukolu))
+    conn.commit()
 
     print("\nÚkol '" + nazev_ukolu + "' byl přidán.\n")
 
-def zobrazit_ukoly(kurzor, def_stav, def_zobrazit_popis):
+def zobrazit_ukoly(cursor, sql_stav, popis):
     print("\n")
-    kurzor.execute(f"SELECT * FROM ukoly {def_stav}")
-    ukoly = kurzor.fetchall()
+    cursor.execute(f"SELECT * FROM ukoly {sql_stav}")
+    ukoly = cursor.fetchall()
 
     cisla_ukolu = []
     if not ukoly:
         print("Seznam úkolů je prázdný.")
     else:
         for ukol in ukoly:
-            if def_zobrazit_popis:
+            if popis:
                 print(
                     f"- ID úkolu: {ukol[0]}",
                     f"- Název: {ukol[1]}",
@@ -80,8 +80,8 @@ def zobrazit_ukoly(kurzor, def_stav, def_zobrazit_popis):
 
     return cisla_ukolu
 
-def aktualizovat_ukol(spojeni, kurzor, def_stav, def_zobrazit_popis):
-    cisla_ukolu = zobrazit_ukoly(kurzor, def_stav, def_zobrazit_popis)
+def aktualizovat_ukol(conn, cursor, sql_stav, popis):
+    cisla_ukolu = zobrazit_ukoly(cursor, sql_stav, popis)
 
     while True:
         id = int(input("\nZadejte číslo ID, u kterého chcete změnit stav: "))
@@ -98,16 +98,15 @@ def aktualizovat_ukol(spojeni, kurzor, def_stav, def_zobrazit_popis):
             print("Zadali jste neplatný vstup.")
 
     if novy_stav == 1:
-        kurzor.execute(f"UPDATE ukoly SET stav='Probíhá' WHERE id={id}")
-        spojeni.commit()
+        cursor.execute(f"UPDATE ukoly SET stav='Probíhá' WHERE id={id}")
+        conn.commit()
 
     elif novy_stav == 2:
-        kurzor.execute(f"UPDATE ukoly SET stav='Hotovo' WHERE id={id}")
-        spojeni.commit()
+        cursor.execute(f"UPDATE ukoly SET stav='Hotovo' WHERE id={id}")
+        conn.commit()
 
-
-def odstranit_ukol(spojeni, kurzor, def_stav, def_zobrazit_popis):
-    cisla_ukolu = zobrazit_ukoly(kurzor, def_stav, def_zobrazit_popis)
+def odstranit_ukol(conn, cursor, sql_stav, popis):
+    cisla_ukolu = zobrazit_ukoly(cursor, sql_stav, popis)
     
     while True:
         id = int(input("\nZadejte číslo ID úkolu, který chcete odstranit: "))
@@ -116,10 +115,10 @@ def odstranit_ukol(spojeni, kurzor, def_stav, def_zobrazit_popis):
         else:
             print("\nZadali jste neplatné ID úkolu.")
 
-    kurzor.execute(f"DELETE FROM ukoly WHERE id={id}")
-    spojeni.commit()
+    cursor.execute(f"DELETE FROM ukoly WHERE id={id}")
+    conn.commit()
 
-def hlavni_menu(def_conn, def_cursor):
+def hlavni_menu(db_conn, db_cursor):
     while True:
         print(
             "",
@@ -136,26 +135,26 @@ def hlavni_menu(def_conn, def_cursor):
         if int(odpoved) not in range(1,6):
             print("\nNeplatný vstup. Zadej číslo od 1 do 5.")
         elif odpoved == "1":
-            pridat_ukol(def_conn, def_cursor)
+            pridat_ukol(db_conn, db_cursor)
         elif odpoved == "2":
             stav = "WHERE stav = 'nezahájeno' OR stav = 'probíhá'"
             zobrazit_popis = True
-            zobrazit_ukoly(def_cursor, stav, zobrazit_popis)
+            zobrazit_ukoly(db_cursor, stav, zobrazit_popis)
         elif odpoved == "3":
             stav = "WHERE stav = 'nezahájeno' OR stav = 'probíhá'"
             zobrazit_popis = False
-            aktualizovat_ukol(def_conn, def_cursor, stav, zobrazit_popis)
+            aktualizovat_ukol(db_conn, db_cursor, stav, zobrazit_popis)
         elif odpoved == "4":
             stav = ""
             zobrazit_popis = False
-            odstranit_ukol(def_conn, def_cursor, stav, zobrazit_popis)
+            odstranit_ukol(db_conn, db_cursor, stav, zobrazit_popis)
         elif odpoved == "5":
             print("\nKonec programu.")
-            def_cursor.close()
-            def_conn.close()
+            db_cursor.close()
+            db_conn.close()
             break
 
 if __name__ == "__main__":
-    conn, cursor = pripojeni_db()
-    vytvoreni_tabulky(conn, cursor)
-    hlavni_menu(conn, cursor)
+    db_conn, db_cursor = pripojeni_db()
+    vytvoreni_tabulky(db_conn, db_cursor)
+    hlavni_menu(db_conn, db_cursor)
