@@ -6,7 +6,6 @@ email: jecminkam@seznam.cz
 """
 
 import mysql.connector
-import pytest
 
 def pripojeni_db():
     try:
@@ -33,25 +32,16 @@ def vytvoreni_tabulky(conn, cursor):
         )""")
     conn.commit()
 
-def pridat_ukol(conn, cursor):
-    while True:
-        nazev_ukolu = input("\nZadejte název úkolu: ")
-        if nazev_ukolu == "":
-            print("\nZadali jste prázdný vstup. Zadejte znovu název úkolu.")
-        else:
-            break
+def pridat_ukol(conn, cursor, nazev, popis):
 
-    while True:
-        popis_ukolu = input("Zadejte popis úkolu: ")
-        if popis_ukolu == "":
-            print("\nZadali jste prázdný vstup. Zadejte znovu popis úkolu.")
-        else:
-            break
+    if not nazev or not popis:
+        print("\nNázev i popis nesmí zůstat prázdné!")
+        return False
 
-    cursor.execute("""INSERT INTO ukoly (nazev, popis, stav, datum_vytvoreni) VALUES (%s, %s, 'nezahájeno', CURDATE())""", (nazev_ukolu, popis_ukolu))
+    cursor.execute("""INSERT INTO ukoly (nazev, popis, stav, datum_vytvoreni) VALUES (%s, %s, 'nezahájeno', CURDATE())""", (nazev, popis))
     conn.commit()
-
-    print("\nÚkol '" + nazev_ukolu + "' byl přidán.\n")
+    print("\nÚkol '" + nazev + "' byl přidán.\n")
+    return True
 
 def zobrazit_ukoly(cursor, sql_stav, popis):
     print("\n")
@@ -80,43 +70,35 @@ def zobrazit_ukoly(cursor, sql_stav, popis):
 
     return cisla_ukolu
 
-def aktualizovat_ukol(conn, cursor, sql_stav, popis):
-    cisla_ukolu = zobrazit_ukoly(cursor, sql_stav, popis)
-
-    while True:
-        id = int(input("\nZadejte číslo ID, u kterého chcete změnit stav: "))
-        if id in cisla_ukolu:
-            break
-        else:
-            print("\nZadali jste neplatné ID úkolu.")
-
-    while True:
-        novy_stav = int(input("\nPro změnu stavu na 'Probíhá' zmáčkněte číslo 1, pro změnu stavu na 'Hotovo' zmáčkněte číslo 2: "))
-        if novy_stav in (1,2):
-            break
-        else:
-            print("Zadali jste neplatný vstup.")
+def aktualizovat_ukol(conn, cursor, id, novy_stav):
+    cursor.execute(f"SELECT id FROM ukoly WHERE id={id}")
+    if not cursor.fetchone():
+        print("Zadali jste neplatné ID.")
+        return False
 
     if novy_stav == 1:
         cursor.execute(f"UPDATE ukoly SET stav='Probíhá' WHERE id={id}")
         conn.commit()
+        return True
 
     elif novy_stav == 2:
         cursor.execute(f"UPDATE ukoly SET stav='Hotovo' WHERE id={id}")
         conn.commit()
+        return True
 
-def odstranit_ukol(conn, cursor, sql_stav, popis):
-    cisla_ukolu = zobrazit_ukoly(cursor, sql_stav, popis)
+    else:
+        print("Zadali jste špatný vstup.")
+        return False
+
+def odstranit_ukol(conn, cursor, id):
+    cursor.execute(f"SELECT id FROM ukoly WHERE id={id}")
+    if not cursor.fetchone():
+        print("Zadali jste neplatné ID.")
+        return False
     
-    while True:
-        id = int(input("\nZadejte číslo ID úkolu, který chcete odstranit: "))
-        if id in cisla_ukolu:
-            break
-        else:
-            print("\nZadali jste neplatné ID úkolu.")
-
     cursor.execute(f"DELETE FROM ukoly WHERE id={id}")
     conn.commit()
+    return True
 
 def hlavni_menu(db_conn, db_cursor):
     while True:
@@ -134,20 +116,66 @@ def hlavni_menu(db_conn, db_cursor):
 
         if int(odpoved) not in range(1,6):
             print("\nNeplatný vstup. Zadej číslo od 1 do 5.")
+        
         elif odpoved == "1":
-            pridat_ukol(db_conn, db_cursor)
+                while True:
+                    nazev_ukolu = input("\nZadejte název úkolu: ")
+                    if nazev_ukolu == "":
+                        print("\nZadali jste prázdný vstup. Zadejte znovu název úkolu.")
+                    else:
+                        break
+
+                while True:
+                    popis_ukolu = input("Zadejte popis úkolu: ")
+                    if popis_ukolu == "":
+                        print("\nZadali jste prázdný vstup. Zadejte znovu popis úkolu.")
+                    else:
+                        break
+                
+                pridat_ukol(db_conn, db_cursor, nazev_ukolu, popis_ukolu)
+
         elif odpoved == "2":
             stav = "WHERE stav = 'nezahájeno' OR stav = 'probíhá'"
             zobrazit_popis = True
             zobrazit_ukoly(db_cursor, stav, zobrazit_popis)
+        
         elif odpoved == "3":
             stav = "WHERE stav = 'nezahájeno' OR stav = 'probíhá'"
             zobrazit_popis = False
-            aktualizovat_ukol(db_conn, db_cursor, stav, zobrazit_popis)
+
+            cisla_ukolu = zobrazit_ukoly(db_cursor, stav, zobrazit_popis)
+
+            while True:
+                id_ukolu = int(input("\nZadejte číslo ID, u kterého chcete změnit stav: "))
+                if id_ukolu in cisla_ukolu:
+                    break
+                else:
+                    print("\nZadali jste neplatné ID úkolu.")
+
+            while True:
+                novy_stav_ukolu = int(input("\nPro změnu stavu na 'Probíhá' zmáčkněte číslo 1, pro změnu stavu na 'Hotovo' zmáčkněte číslo 2: "))
+                if novy_stav_ukolu in (1,2):
+                    break
+                else:
+                    print("Zadali jste neplatný vstup.")
+
+            aktualizovat_ukol(db_conn, db_cursor, id_ukolu, novy_stav_ukolu)
+
         elif odpoved == "4":
             stav = ""
             zobrazit_popis = False
-            odstranit_ukol(db_conn, db_cursor, stav, zobrazit_popis)
+
+            cisla_ukolu = zobrazit_ukoly(db_cursor, stav, zobrazit_popis)
+
+            while True:
+                    id_ukolu = int(input("\nZadejte číslo ID úkolu, který chcete odstranit: "))
+                    if id_ukolu in cisla_ukolu:
+                        break
+                    else:
+                        print("\nZadali jste neplatné ID úkolu.")
+
+            odstranit_ukol(db_conn, db_cursor, id_ukolu)
+
         elif odpoved == "5":
             print("\nKonec programu.")
             db_cursor.close()
