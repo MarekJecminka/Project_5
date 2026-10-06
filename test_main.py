@@ -59,3 +59,17 @@ def test_aktualizovat_ukol(db_setup, novy_stav, ocekavany_vysledek):
     result = aktualizovat_ukol(conn, cursor, id, novy_stav)
     assert result == ocekavany_vysledek
 
+@pytest.mark.parametrize("id, ocekavany_vysledek",[
+    (1, True),
+    (2, False)
+])
+def test_odstranit_ukol(db_setup, id, ocekavany_vysledek):
+    conn, cursor = db_setup
+    pridat_ukol(conn, cursor, "udělat domácí úkol", "spočítat příklady do matematiky")
+    result = odstranit_ukol(conn, cursor, id)
+    assert result == ocekavany_vysledek
+    
+    if ocekavany_vysledek:
+        cursor.execute("SELECT nazev FROM ukoly WHERE id = 1")
+        vysledek = cursor.fetchone()
+        assert vysledek is None
