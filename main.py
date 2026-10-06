@@ -7,13 +7,13 @@ email: jecminkam@seznam.cz
 
 import mysql.connector
 
-def pripojeni_db():
+def pripojeni_db(db):
     try:
         conn = mysql.connector.connect(
             host = "localhost",
             user = "root",
             password = "1111",
-            database = "database_ukoly"
+            database = db
         )
         print("Připojení k databázi bylo úspěšné.")
     except mysql.connector.Error as err:
@@ -183,6 +183,7 @@ def hlavni_menu(db_conn, db_cursor):
             break
 
 if __name__ == "__main__":
-    db_conn, db_cursor = pripojeni_db()
+    db_name = "database_ukoly"
+    db_conn, db_cursor = pripojeni_db(db_name)
     vytvoreni_tabulky(db_conn, db_cursor)
     hlavni_menu(db_conn, db_cursor)
