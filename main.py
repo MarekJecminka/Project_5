@@ -38,15 +38,20 @@ def pridat_ukol(conn, cursor, nazev, popis):
         print("\nNázev i popis nesmí zůstat prázdné!")
         return False
 
-    cursor.execute("""INSERT INTO ukoly (nazev, popis, stav, datum_vytvoreni) VALUES (%s, %s, 'nezahájeno', CURDATE())""", (nazev, popis))
+    cursor.execute("INSERT INTO ukoly (nazev, popis, stav, datum_vytvoreni) VALUES (%s, %s, 'Nezahájeno', CURDATE())", (nazev, popis))
     conn.commit()
     print("\nÚkol '" + nazev + "' byl přidán.\n")
     return True
 
 def zobrazit_ukoly(cursor, sql_stav, popis):
     print("\n")
-    cursor.execute(f"SELECT * FROM ukoly {sql_stav}")
-    ukoly = cursor.fetchall()
+    if sql_stav:
+        sql_dotaz = "SELECT * FROM ukoly WHERE stav IN (%s, %s)"
+        cursor.execute(sql_dotaz, sql_stav)
+        ukoly = cursor.fetchall()
+    else:
+        sql_dotaz = "SELECT * FROM ukoly"
+        ukoly = cursor.fetchall()
 
     cisla_ukolu = []
     if not ukoly:
@@ -71,18 +76,18 @@ def zobrazit_ukoly(cursor, sql_stav, popis):
     return cisla_ukolu
 
 def aktualizovat_ukol(conn, cursor, id, novy_stav):
-    cursor.execute(f"SELECT id FROM ukoly WHERE id={id}")
+    cursor.execute("SELECT id FROM ukoly WHERE id=%s",(id,))
     if not cursor.fetchone():
         print("Zadali jste neplatné ID.")
         return False
 
     if novy_stav == 1:
-        cursor.execute(f"UPDATE ukoly SET stav='Probíhá' WHERE id={id}")
+        cursor.execute("UPDATE ukoly SET stav='Probíhá' WHERE id=%s",(id,))
         conn.commit()
         return True
 
     elif novy_stav == 2:
-        cursor.execute(f"UPDATE ukoly SET stav='Hotovo' WHERE id={id}")
+        cursor.execute("UPDATE ukoly SET stav='Hotovo' WHERE id=%s",(id,))
         conn.commit()
         return True
 
@@ -91,12 +96,12 @@ def aktualizovat_ukol(conn, cursor, id, novy_stav):
         return False
 
 def odstranit_ukol(conn, cursor, id):
-    cursor.execute(f"SELECT id FROM ukoly WHERE id={id}")
+    cursor.execute("SELECT id FROM ukoly WHERE id=%s",(id,))
     if not cursor.fetchone():
         print("Zadali jste neplatné ID.")
         return False
     
-    cursor.execute(f"DELETE FROM ukoly WHERE id={id}")
+    cursor.execute("DELETE FROM ukoly WHERE id=%s",(id,))
     conn.commit()
     return True
 
@@ -135,12 +140,12 @@ def hlavni_menu(db_conn, db_cursor):
                 pridat_ukol(db_conn, db_cursor, nazev_ukolu, popis_ukolu)
 
         elif odpoved == "2":
-            stav = "WHERE stav = 'nezahájeno' OR stav = 'probíhá'"
+            stav = ('Nezahájeno', 'Probíhá')
             zobrazit_popis = True
             zobrazit_ukoly(db_cursor, stav, zobrazit_popis)
         
         elif odpoved == "3":
-            stav = "WHERE stav = 'nezahájeno' OR stav = 'probíhá'"
+            stav = ('Nezahájeno', 'Probíhá')
             zobrazit_popis = False
 
             cisla_ukolu = zobrazit_ukoly(db_cursor, stav, zobrazit_popis)
@@ -162,7 +167,7 @@ def hlavni_menu(db_conn, db_cursor):
             aktualizovat_ukol(db_conn, db_cursor, id_ukolu, novy_stav_ukolu)
 
         elif odpoved == "4":
-            stav = ""
+            stav = None
             zobrazit_popis = False
 
             cisla_ukolu = zobrazit_ukoly(db_cursor, stav, zobrazit_popis)
