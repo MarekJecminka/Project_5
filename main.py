@@ -51,6 +51,7 @@ def zobrazit_ukoly(cursor, sql_stav, popis):
         ukoly = cursor.fetchall()
     else:
         sql_dotaz = "SELECT * FROM ukoly"
+        cursor.execute(sql_dotaz)
         ukoly = cursor.fetchall()
 
     cisla_ukolu = []
